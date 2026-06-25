@@ -97,6 +97,11 @@ CHIP_ERROR ESP32Utils::StartWiFiLayer(void)
         // active exhausts DMA heap (752-byte beacon buffer) → crash.
         esp_wifi_set_mode(WIFI_MODE_STA);
 
+        // Disable modem sleep.  The default WIFI_PS_MIN_MODEM makes the radio
+        // sleep between DTIM beacon intervals (~100 ms), adding that latency to
+        // every inbound TCP segment — the web server becomes unusably slow.
+        esp_wifi_set_ps(WIFI_PS_NONE);
+
         err = esp_wifi_start();
         if (err != ESP_OK)
         {
