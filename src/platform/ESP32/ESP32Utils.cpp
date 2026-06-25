@@ -91,6 +91,12 @@ CHIP_ERROR ESP32Utils::StartWiFiLayer(void)
     {
         ChipLogProgress(DeviceLayer, "Starting ESP WiFi layer");
 
+        // Force STA mode before starting.  A previous captive-portal session
+        // may have called esp_wifi_set_mode(APSTA), which persists to NVS when
+        // CONFIG_ESP_WIFI_NVS_ENABLED=y.  Starting in APSTA while BLE is still
+        // active exhausts DMA heap (752-byte beacon buffer) → crash.
+        esp_wifi_set_mode(WIFI_MODE_STA);
+
         err = esp_wifi_start();
         if (err != ESP_OK)
         {
