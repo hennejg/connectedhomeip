@@ -214,8 +214,12 @@ void PacketParser::ParseSRVResource(const ResourceData & data)
         {
             // Receiving records that we do not need to parse is normal:
             // MinMDNS may receive all DNSSD packets on the network, only
-            // interested in a subset that is matter-specific
-            if (err != CHIP_ERROR_UNSUPPORTED_DNSSD_SERVICE_NAME)
+            // interested in a subset that is matter-specific.
+            // CHIP_ERROR_NO_MEMORY here means the static mNameBuffer (64 bytes)
+            // was too small for this record's QName (common for non-Matter services
+            // like Apple/Google/printer mDNS with long names).  Treat it the same
+            // as the unsupported-service case: suppress per ParseResource() line ~173.
+            if (err != CHIP_ERROR_UNSUPPORTED_DNSSD_SERVICE_NAME && err != CHIP_ERROR_NO_MEMORY)
             {
                 ChipLogError(Discovery, "Could not start SRV record processing: %" CHIP_ERROR_FORMAT, err.Format());
                 ChipLogByteSpan(Discovery, data.GetData().AsByteSpan());

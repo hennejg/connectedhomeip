@@ -764,12 +764,30 @@ void BLEManagerImpl::DriveBLEState(void)
             // be called again, and execution will proceed to the code below.
             if (!mFlags.Has(Flags::kAdvertisingConfigured))
             {
+#ifndef CONFIG_BT_NIMBLE_EXT_ADV
+                // ble_gap_adv_set_data() rejects commands while advertising is
+                // active on ESP32-S3 (BLE_ERR_MEM_CAPACITY).  Stop first so the
+                // HCI Set Advertising Data command lands on an idle controller.
+                // StartAdvertising() below will restart with the current params.
+                if (ble_gap_adv_active())
+                {
+                    ble_gap_adv_stop();
+                }
+#endif
                 err = ConfigureAdvertisingData();
                 if (err != CHIP_NO_ERROR)
                 {
                     ChipLogError(DeviceLayer, "Configure Adv Data failed: %" CHIP_ERROR_FORMAT, err.Format());
                     ExitNow();
                 }
+                // The NimBLE path never set this flag after a successful configure,
+                // so DriveBLEState() called ble_gap_adv_set_data() on every
+                // kAdvertisingRefreshNeeded tick (including the harmless fast→slow
+                // interval change at 30 s).  On ESP32-S3 the BLE controller is OOM
+                // by then and returns BLE_ERR_MEM_CAPACITY.  Set the flag here so
+                // the slow-transition path only calls StartAdvertising() (new
+                // interval params) without reconfiguring advertising data.
+                mFlags.Set(Flags::kAdvertisingConfigured);
             }
 
             // Start advertising.  This is also an asynchronous step.
